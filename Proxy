@@ -1,19 +1,78 @@
 import socket
+import re
+from concurrent.futures import ThreadPoolExecutor
+from urllib.parse import urlparse
+import logging
+
+SOCKET_READ_SIZE = 10024
+MAX_WORKER_SIZE = 10
 
 
 def main():
-    # create an INET, STREAMing socket
-    serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    # bind the socket to a public host, and a well-known port
-    serversocket.bind(('', 50001))
-    # become a server socket
-    serversocket.listen(5)
-    print(serversocket.getsockname()[1])
+    logging.basicConfig(filename='HTTP_Proxy.log', format='%(asctime)s %(levelname)-8s %(message)s',
+                        datefmt='%m-%d %H:%M', filemode='w', level=logging.DEBUG)
+    console = logging.StreamHandler()
+    console.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(levelname)-8s %(message)s')
+    console.setFormatter(formatter)
+    logging.getLogger('').addHandler(console)
 
-    while 1:
-        client_socket, address = serversocket.accept()
-        data = client_socket.recv(1024)
-        print(data)
+    server_listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_listener.bind(('', 50000))
+    # become a server socket
+    server_listener.listen(5)
+    logging.debug(server_listener.getsockname()[1])
+
+    with ThreadPoolExecutor(max_workers=MAX_WORKER_SIZE) as executioner:
+        while 1:
+            client_to_me_socket, address = server_listener.accept()
+            executioner.submit(threaded_request, client_to_me_socket)
+
+def non_blocking_receive(read_socket):
+        read_socket.setblocking(0)
+        read_socket.settimeout(.2)
+        data = b''
+        while 1:
+            try:
+                new_data = read_socket.recv(SOCKET_READ_SIZE)
+                data = data + new_data
+                if new_data == b'':
+                    break
+            except socket.error:
+                break
+            except socket.timeout:
+                break
+
+        return data
+
+def threaded_request(client_to_me_socket):
+    client_data = non_blocking_receive(client_to_me_socket)
+    logging.info(b'CLIENT: ' + client_data)
+
+    get_pattern = b'GET (.*) HTTP'
+    matched_host = re.search(get_pattern, client_data)
+    if matched_host is None:
+        post_pattern = b'POST (.*) HTTP'
+        matched_host = re.search(post_pattern, client_data)
+        if matched_host is None:
+            logging.warning(b'NONE: ' + client_data)
+            client_to_me_socket.close()
+            return
+        logging.error(b'POST activated:\n' + client_data)
+
+    url = matched_host.group(1)
+    urlParse = urlparse(url)
+
+    me_to_server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    me_to_server_socket.connect((urlParse.hostname, 80))
+
+    me_to_server_socket.sendall(client_data)
+    server_data = non_blocking_receive(me_to_server_socket)
+    logging.info(b'SERVER: ' + server_data)
+    client_to_me_socket.sendall(server_data)
+
+    client_to_me_socket.close()
+    me_to_server_socket.close()
 
 if __name__ == "__main__":
     main()
