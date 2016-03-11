@@ -3,9 +3,10 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlparse
 import logging
+from OpenSSL import SSL
 
-SOCKET_READ_SIZE = 10024
-MAX_WORKER_SIZE = 10
+SOCKET_READ_SIZE = 1024
+MAX_WORKER_SIZE = 20
 
 
 def main():
@@ -30,7 +31,7 @@ def main():
 
 def non_blocking_receive(read_socket):
         read_socket.setblocking(0)
-        read_socket.settimeout(.2)
+        read_socket.settimeout(.15)
         data = b''
         while 1:
             try:
@@ -55,10 +56,9 @@ def threaded_request(client_to_me_socket):
         post_pattern = b'POST (.*) HTTP'
         matched_host = re.search(post_pattern, client_data)
         if matched_host is None:
-            logging.warning(b'NONE: ' + client_data)
+            logging.info(b'Neither POST or GET: ' + client_data)
             client_to_me_socket.close()
             return
-        logging.error(b'POST activated:\n' + client_data)
 
     url = matched_host.group(1)
     urlParse = urlparse(url)
