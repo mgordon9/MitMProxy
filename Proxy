@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlparse
 import logging
 import ssl
+import threading
 
 SOCKET_READ_SIZE = 4096
 MAX_WORKER_SIZE = 20
@@ -38,13 +39,14 @@ def main():
             else:
                 is_correct_host = re.search(HOST, client_request)
                 if is_correct_host is not None:
-                    client_socket, server_socket = set_up_ssl_connection(client_to_me_socket, client_request)
-                    executioner.submit(https_threaded_request, client_socket, server_socket)
+                    logging.debug(b'Correct Host:')
+                    # client_socket, server_socket = set_up_ssl_connection(client_to_me_socket, client_request)
+                    executioner.submit(set_up_ssl_connection, client_to_me_socket, client_request)
 
 
 def non_blocking_receive(read_socket):
         read_socket.setblocking(0)
-        read_socket.settimeout(.3)
+        read_socket.settimeout(2)
         data = b''
         while 1:
             try:
@@ -53,7 +55,7 @@ def non_blocking_receive(read_socket):
                 if new_data == b'' or data[-4:] == b'\r\n\r\n':
                     break
             except socket.error as e:
-                logging.error(str(e))
+                logging.error('non blocking read: ' + str(e))
                 break
             except socket.timeout:
                 break
@@ -77,8 +79,8 @@ def set_up_ssl_connection(client_to_me_socket, client_request):
         try:
             server_connstream = server_context.wrap_socket(sock, server_hostname=url_parse.hostname.decode())
         except socket.timeout as e:
-            logging.error(e)
-            return None, None
+            logging.error(b'server connection failed: ' + e)
+            return
 
         server_connstream.connect((url_parse.hostname, port))
         cert = server_connstream.getpeercert()
@@ -90,10 +92,10 @@ def set_up_ssl_connection(client_to_me_socket, client_request):
         try:
             client_connstream = client_context.wrap_socket(client_to_me_socket, server_side=True)
         except socket.timeout as e:
-            logging.error(e)
-            return None, None
+            logging.error(b'client connection failed: ' + e)
+            return
 
-    return client_connstream, server_connstream
+    https_threaded_request(client_connstream, server_connstream)
 
 
 def http_threaded_request(client_to_me_socket, request):
@@ -127,8 +129,8 @@ def http_threaded_request(client_to_me_socket, request):
 
 def https_threaded_request(client_to_me_socket, possible_me_to_server_socket):
     client_data = non_blocking_receive(client_to_me_socket)
-    logging.info(b'FROM CLIENT: ' + client_data)
 
+    logging.debug(b'in https threaded request')
     get_pattern = b'GET (.*) HTTP'
     matched_host = re.search(get_pattern, client_data)
     if matched_host is None:
@@ -146,9 +148,11 @@ def https_threaded_request(client_to_me_socket, possible_me_to_server_socket):
 
     me_to_server_socket = possible_me_to_server_socket
     me_to_server_socket.sendall(client_data)
-    server_data = me_to_server_socket.recv(SOCKET_READ_SIZE)
-    logging.info(b'FROM SERVER: ' + server_data)
+    server_data = non_blocking_receive(me_to_server_socket)
     client_to_me_socket.sendall(server_data)
+
+    logging.info( b'FROM CLIENT: ' + client_data)
+    logging.info( b'FROM SERVER: ' + server_data)
 
     client_to_me_socket.close()
     me_to_server_socket.close()
