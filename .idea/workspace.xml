@@ -1,11 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="0669b443-7ca9-4669-824d-0195d59233cf" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/HTTP_Proxy.log" afterPath="$PROJECT_DIR$/HTTP_Proxy.log" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Proxy" afterPath="$PROJECT_DIR$/Proxy" />
-    </list>
+    <list default="true" id="0669b443-7ca9-4669-824d-0195d59233cf" name="Default" comment="" />
     <ignored path="MitMProxy.iws" />
     <ignored path=".idea/workspace.xml" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -282,7 +278,7 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="-6" y="0" width="1546" height="830" extended-state="0" />
+    <frame x="-6" y="0" width="1546" height="830" extended-state="1" />
     <editor active="true" />
     <layout>
       <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.3124183" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
