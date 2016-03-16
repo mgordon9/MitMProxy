@@ -24,11 +24,11 @@ class MitMProxy:
     def main(self):
         logging.basicConfig(filename=self.LOG, format='%(asctime)s %(levelname)-8s %(message)s',
                             datefmt='%m-%d %H:%M', filemode='w', level=logging.DEBUG)
-        console = logging.StreamHandler()
-        console.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(levelname)-8s %(message)s')
-        console.setFormatter(formatter)
-        logging.getLogger('').addHandler(console)
+        # console = logging.StreamHandler()
+        # console.setLevel(logging.DEBUG)
+        # formatter = logging.Formatter('%(levelname)-8s %(message)s')
+        # console.setFormatter(formatter)
+        # logging.getLogger('').addHandler(console)
 
         self.input_parser()
 
