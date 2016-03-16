@@ -4,7 +4,6 @@ from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlparse
 import logging
 import ssl
-import subprocess
 
 SOCKET_READ_SIZE = 4096
 MAX_WORKER_SIZE = 20
@@ -28,8 +27,6 @@ def main():
     server_listener.listen(5)
     logging.debug(server_listener.getsockname()[1])
 
-    subprocess.call("")
-
     with ThreadPoolExecutor(max_workers=MAX_WORKER_SIZE) as executioner:
         while 1:
             client_to_me_socket, address = server_listener.accept()
@@ -39,11 +36,10 @@ def main():
             if is_connect_request is None:
                 executioner.submit(http_threaded_request, client_to_me_socket, client_request)
             else:
-                is_correct_host = re.search(HOST, client_request)
-                if is_correct_host is not None:
-                    logging.debug(b'Correct Host:')
-                    logging.info(client_request)
-                    executioner.submit(set_up_ssl_connection, client_to_me_socket, client_request)
+                # is_correct_host = re.search(HOST, client_request)
+                # if is_correct_host is not None:
+                #     logging.debug(b'Correct Host:')
+                executioner.submit(set_up_ssl_connection, client_to_me_socket, client_request)
 
 
 def non_blocking_receive(read_socket):
@@ -63,6 +59,7 @@ def non_blocking_receive(read_socket):
 
 
 def set_up_ssl_connection(client_to_me_socket, client_request):
+    logging.info(client_request)
     host_pattern = b'CONNECT (.*) HTTP'
     host = re.search(host_pattern, client_request)
     client_connstream = None
@@ -81,14 +78,12 @@ def set_up_ssl_connection(client_to_me_socket, client_request):
         except socket.timeout as e:
             logging.error(b'server connection failed: ' + e)
             return
-
         server_connstream.connect((url_parse.hostname, port))
 
         cert = server_connstream.getpeercert()
         logging.debug(cert)
         common_name, dns_list = parse_cert(cert)
-        certificate, private_key = create_cert_and_key(common_name, dns_list)
-
+        # certificate, private_key = create_cert_and_key(common_name, dns_list)
 
         client_to_me_socket.sendall(b'HTTP/1.1 200 OK\r\n\r\n')
         client_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
@@ -115,7 +110,7 @@ def http_threaded_request(client_to_me_socket, request):
         post_pattern = b'POST (.*) HTTP'
         matched_host = re.search(post_pattern, client_data)
         if matched_host is None:
-            logging.info(b'Neither POST or GET: ' + client_data)
+            # logging.info(b'Neither POST or GET: ' + client_data)
             client_to_me_socket.close()
             return
 
@@ -137,21 +132,21 @@ def http_threaded_request(client_to_me_socket, request):
 def https_threaded_request(client_to_me_socket, me_to_server_socket):
     client_data = non_blocking_receive(client_to_me_socket)
 
-    logging.debug(b'in https threaded request')
-    get_pattern = b'GET (.*) HTTP'
-    matched_host = re.search(get_pattern, client_data)
+    # get_pattern = b'GET (.*) HTTP'
+    # matched_host = re.search(get_pattern, client_data)
+    # if matched_host is None:
+    #     post_pattern = b'POST (.*) HTTP'
+    #     matched_host = re.search(post_pattern, client_data)
+    #     if matched_host is None:
+    post_pattern = b'GET'
+    matched_host = re.search(post_pattern, client_data)
     if matched_host is None:
-        post_pattern = b'POST (.*) HTTP'
+        post_pattern = b'POST'
         matched_host = re.search(post_pattern, client_data)
         if matched_host is None:
-            post_pattern = b'GET'
-            matched_host = re.search(post_pattern, client_data)
-            if matched_host is None:
-                post_pattern = b'POST'
-                matched_host = re.search(post_pattern, client_data)
-                if matched_host is None:
-                    logging.info(b'Neither POST or GET: ' + client_data)
-                    return
+            # logging.info(b'Neither POST or GET: ' + client_data)
+            client_to_me_socket.close()
+            return
 
     me_to_server_socket = me_to_server_socket
     me_to_server_socket.sendall(client_data)
@@ -165,16 +160,16 @@ def https_threaded_request(client_to_me_socket, me_to_server_socket):
     me_to_server_socket.close()
 
 
-def create_cert_and_key():
-    return 0, 0
-
-
 def parse_cert(cert):
-    dns_pattern = b'DNS\', \'(.+?)\'+?'
-    common_name_pattern = b'commonName\', \'(.*)\''
+    dns_pattern = 'DNS\', \'(.+?)\'+?'
+    common_name_pattern = 'commonName\', \'(.*)\''
 
-    common_name = re.search(common_name_pattern, str(cert['subject']).encode())
-    dns_list = re.findall(dns_pattern, str(cert['subjectAltName']).encode())
+    common_name = re.search(common_name_pattern, str(cert['subject']))
+    print('common_name: ' + common_name.group(1))
+    dns_list = re.findall(dns_pattern, str(cert['subjectAltName']))
+    print('alt_names:\n')
+    for x in dns_list:
+        print(x)
 
     return common_name, dns_list
 
