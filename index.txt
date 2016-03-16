@@ -1,1 +1,0 @@
-V	181210192012Z		01	unknown	/C=US/ST=MD/L=Baltimore/O=Test CA, Limited/CN=*.yelp.com
